@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -10,6 +10,7 @@ import {
   Text,
   useToast,
   Link,
+  Checkbox,
   FormErrorMessage,
   InputGroup,
   InputRightElement,
@@ -18,15 +19,25 @@ import {
 import { ViewIcon, ViewOffIcon } from '@chakra-ui/icons';
 import { supabase } from '../../lib/supabase';
 
-export function Register() {
+export function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
+  const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState({});
   const toast = useToast();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const savedCredentials = localStorage.getItem('userCredentials');
+    if (savedCredentials) {
+      const { email: savedEmail, password: savedPassword } = JSON.parse(savedCredentials);
+      setEmail(savedEmail);
+      setPassword(savedPassword);
+      setRememberMe(true);
+    }
+  }, []);
 
   const validateForm = () => {
     const newErrors = {};
@@ -41,26 +52,8 @@ export function Register() {
     // Validación de contraseña
     if (!password) {
       newErrors.password = 'La contraseña es requerida';
-    } else {
-      if (password.length < 6) {
-        newErrors.password = 'La contraseña debe tener al menos 6 caracteres';
-      }
-      if (!/\d/.test(password)) {
-        newErrors.password = 'La contraseña debe contener al menos un número';
-      }
-      if (!/[a-z]/.test(password)) {
-        newErrors.password = 'La contraseña debe contener al menos una letra minúscula';
-      }
-      if (!/[A-Z]/.test(password)) {
-        newErrors.password = 'La contraseña debe contener al menos una letra mayúscula';
-      }
-    }
-
-    // Validación de confirmación de contraseña
-    if (!confirmPassword) {
-      newErrors.confirmPassword = 'Por favor confirma tu contraseña';
-    } else if (password !== confirmPassword) {
-      newErrors.confirmPassword = 'Las contraseñas no coinciden';
+    } else if (password.length < 6) {
+      newErrors.password = 'La contraseña debe tener al menos 6 caracteres';
     }
 
     setErrors(newErrors);
@@ -83,36 +76,40 @@ export function Register() {
 
     try {
       setLoading(true);
-      const { data, error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
       if (error) {
         let errorMessage = error.message;
-        if (error.message.includes('already registered')) {
-          errorMessage = 'Este correo ya está registrado';
-        } else if (error.message.includes('weak password')) {
-          errorMessage = 'La contraseña es demasiado débil. Debe tener al menos 6 caracteres';
+        if (error.message.includes('Invalid login credentials')) {
+          errorMessage = 'Credenciales inválidas';
+        } else if (error.message.includes('Email not confirmed')) {
+          errorMessage = 'Email no confirmado. Por favor verifica tu correo';
         }
         throw { message: errorMessage };
       }
 
+      if (rememberMe) {
+        localStorage.setItem('userCredentials', JSON.stringify({ email, password }));
+      } else {
+        localStorage.removeItem('userCredentials');
+      }
+
       toast({
-        title: '¡Registro exitoso!',
-        description: 'Por favor revisa tu correo para confirmar tu cuenta',
+        title: '¡Bienvenido!',
+        description: 'Has iniciado sesión correctamente',
         status: 'success',
-        duration: 5000,
+        duration: 3000,
         isClosable: true,
       });
 
-      setTimeout(() => {
-        navigate('/');
-      }, 5000);
+      navigate('/');
       
     } catch (error) {
       toast({
-        title: 'Error en el registro',
+        title: 'Error al iniciar sesión',
         description: error.message,
         status: 'error',
         duration: 3000,
@@ -128,7 +125,7 @@ export function Register() {
       <form onSubmit={handleSubmit}>
         <VStack spacing={4}>
           <Text fontSize="2xl" fontWeight="bold">
-            Registro
+            Iniciar Sesión
           </Text>
           
           <FormControl isRequired isInvalid={errors.email}>
@@ -170,29 +167,13 @@ export function Register() {
             <FormErrorMessage>{errors.password}</FormErrorMessage>
           </FormControl>
 
-          <FormControl isRequired isInvalid={errors.confirmPassword}>
-            <FormLabel>Confirmar contraseña</FormLabel>
-            <InputGroup>
-              <Input
-                type={showPassword ? 'text' : 'password'}
-                value={confirmPassword}
-                onChange={(e) => {
-                  setConfirmPassword(e.target.value);
-                  setErrors({ ...errors, confirmPassword: undefined });
-                }}
-                placeholder="Confirma tu contraseña"
-              />
-              <InputRightElement>
-                <IconButton
-                  aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
-                  icon={showPassword ? <ViewOffIcon /> : <ViewIcon />}
-                  onClick={() => setShowPassword(!showPassword)}
-                  variant="ghost"
-                  size="sm"
-                />
-              </InputRightElement>
-            </InputGroup>
-            <FormErrorMessage>{errors.confirmPassword}</FormErrorMessage>
+          <FormControl>
+            <Checkbox
+              isChecked={rememberMe}
+              onChange={(e) => setRememberMe(e.target.checked)}
+            >
+              Recordar mis credenciales
+            </Checkbox>
           </FormControl>
 
           <Button
@@ -201,13 +182,13 @@ export function Register() {
             width="100%"
             isLoading={loading}
           >
-            Registrarse
+            Iniciar Sesión
           </Button>
 
           <Text>
-            ¿Ya tienes una cuenta?{' '}
-            <Link color="blue.500" href="/login">
-              Inicia sesión aquí
+            ¿No tienes una cuenta?{' '}
+            <Link color="blue.500" href="/signup">
+              Regístrate aquí
             </Link>
           </Text>
         </VStack>
