@@ -1,3 +1,4 @@
+// Importación de dependencias y componentes necesarios
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -17,9 +18,16 @@ import {
   IconButton,
 } from '@chakra-ui/react';
 import { ViewIcon, ViewOffIcon } from '@chakra-ui/icons';
+import { FcGoogle } from 'react-icons/fc';
 import { supabase } from '../../lib/supabase';
 
-export function Login() {
+/**
+ * Componente de inicio de sesión
+ * Maneja la autenticación de usuarios mediante email/password y Google
+ * @param {Function} setLocationEnabled - Función para actualizar el estado de permisos de ubicación
+ */
+export function Login({ setLocationEnabled }) {
+  // Estados para el formulario y la interfaz
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
@@ -29,6 +37,7 @@ export function Login() {
   const toast = useToast();
   const navigate = useNavigate();
 
+  // Efecto para cargar credenciales guardadas
   useEffect(() => {
     const savedCredentials = localStorage.getItem('userCredentials');
     if (savedCredentials) {
@@ -39,6 +48,10 @@ export function Login() {
     }
   }, []);
 
+  /**
+   * Valida los campos del formulario
+   * @returns {Boolean} Verdadero si el formulario es válido, falso de lo contrario
+   */
   const validateForm = () => {
     const newErrors = {};
     
@@ -60,6 +73,10 @@ export function Login() {
     return Object.keys(newErrors).length === 0;
   };
 
+  /**
+   * Maneja el envío del formulario
+   * @param {Event} e - Evento de envío del formulario
+   */
   const handleSubmit = async (e) => {
     e.preventDefault();
     
@@ -91,6 +108,41 @@ export function Login() {
         throw { message: errorMessage };
       }
 
+      // Solicitar permisos de ubicación después del inicio de sesión exitoso
+      if ('geolocation' in navigator) {
+        const requestLocation = () => {
+          return new Promise((resolve) => {
+            navigator.geolocation.getCurrentPosition(
+              (position) => {
+                resolve({ success: true, position });
+              },
+              (error) => {
+                resolve({ success: false, error });
+              },
+              {
+                enableHighAccuracy: true,
+                timeout: 15000,
+                maximumAge: 30000
+              }
+            );
+          });
+        };
+
+        const { success, error: geoError } = await requestLocation();
+        
+        if (success) {
+          setLocationEnabled(true);
+        } else {
+          toast({
+            title: 'Ubicación requerida',
+            description: 'Para una mejor experiencia, por favor permite el acceso a tu ubicación y recarga la página.',
+            status: 'warning',
+            duration: 8000,
+            isClosable: true,
+          });
+        }
+      }
+
       if (rememberMe) {
         localStorage.setItem('userCredentials', JSON.stringify({ email, password }));
       } else {
@@ -113,6 +165,33 @@ export function Login() {
         description: error.message,
         status: 'error',
         duration: 3000,
+        isClosable: true,
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /**
+   * Maneja el inicio de sesión con Google
+   */
+  const handleGoogleLogin = async () => {
+    try {
+      setLoading(true);
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`
+        }
+      });
+
+      if (error) throw error;
+    } catch (error) {
+      toast({
+        title: 'Error al iniciar sesión con Google',
+        description: error.message,
+        status: 'error',
+        duration: 5000,
         isClosable: true,
       });
     } finally {
@@ -193,6 +272,17 @@ export function Login() {
           </Text>
         </VStack>
       </form>
+      <Box w="100%" mt={4}>
+        <Button
+          w="100%"
+          variant="outline"
+          leftIcon={<FcGoogle />}
+          onClick={handleGoogleLogin}
+          isLoading={loading}
+        >
+          Continuar con Google
+        </Button>
+      </Box>
     </Box>
   );
 }
