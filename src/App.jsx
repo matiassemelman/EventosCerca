@@ -39,7 +39,7 @@ function App() {
               <Routes>
                 <Route path="/" element={<Home />} />
                 <Route path="/register" element={<Register />} />
-                <Route path="/login" element={<Login />} />
+                <Route path="/login" element={<Login setLocationEnabled={setLocationEnabled} />} />
                 <Route path="/auth/callback" element={<AuthCallback />} />
               </Routes>
             </Container>
