@@ -1,10 +1,31 @@
-import { Box, Heading, Button, useToast, VStack } from '@chakra-ui/react'
+import { Box, Heading, Button, useToast, VStack, HStack, Icon, Text } from '@chakra-ui/react'
 import { useNavigate } from 'react-router-dom'
+import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
+import { EventFeed } from '../components/events/EventFeed'
+import { FaMapMarkerAlt } from 'react-icons/fa'
 
 export function Home({ locationEnabled, setLocationEnabled }) {
   const navigate = useNavigate()
   const toast = useToast()
+  const [userLocation, setUserLocation] = useState(null)
+
+  useEffect(() => {
+    if (locationEnabled) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setUserLocation({
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude
+          })
+        },
+        (error) => {
+          console.error('Error getting location:', error)
+          setLocationEnabled(false)
+        }
+      )
+    }
+  }, [locationEnabled])
 
   const handleLogout = async () => {
     try {
@@ -58,17 +79,30 @@ export function Home({ locationEnabled, setLocationEnabled }) {
   }
 
   return (
-    <Box p={8} textAlign="center">
-      <VStack spacing={6}>
-        <Heading>Hola Mundo</Heading>
-        {!locationEnabled && (
-          <Button colorScheme="blue" onClick={handleLocationPermission}>
-            Permitir Ubicación
+    <Box maxW="container.xl" mx="auto" py={6}>
+      <VStack spacing={6} align="stretch">
+        <HStack justify="space-between" px={4}>
+          <Heading size="lg">Eventos Cerca</Heading>
+          <Button colorScheme="red" variant="outline" onClick={handleLogout}>
+            Cerrar Sesión
           </Button>
+        </HStack>
+
+        {!locationEnabled && (
+          <Box bg="blue.50" p={4} borderRadius="md" mx={4}>
+            <HStack>
+              <Icon as={FaMapMarkerAlt} color="blue.500" />
+              <Text>
+                Activa tu ubicación para ver eventos cercanos a ti
+              </Text>
+              <Button size="sm" colorScheme="blue" onClick={handleLocationPermission}>
+                Activar Ubicación
+              </Button>
+            </HStack>
+          </Box>
         )}
-        <Button colorScheme="red" onClick={handleLogout}>
-          Cerrar Sesión
-        </Button>
+
+        <EventFeed userLocation={userLocation} />
       </VStack>
     </Box>
   )
