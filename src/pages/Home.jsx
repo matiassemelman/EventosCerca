@@ -1,14 +1,16 @@
-import { Box, Heading, Button, useToast, VStack, HStack, Icon, Text } from '@chakra-ui/react'
+import { Box, Heading, Button, useToast, VStack, HStack, Icon, Text, Tabs, TabList, TabPanels, Tab, TabPanel } from '@chakra-ui/react'
 import { useNavigate } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { EventFeed } from '../components/events/EventFeed'
-import { FaMapMarkerAlt } from 'react-icons/fa'
+import { FaMapMarkerAlt, FaList } from 'react-icons/fa'
+import EventMap from '../components/EventMap'
 
 export function Home({ locationEnabled, setLocationEnabled }) {
   const navigate = useNavigate()
   const toast = useToast()
   const [userLocation, setUserLocation] = useState(null)
+  const [events, setEvents] = useState([])
 
   useEffect(() => {
     if (locationEnabled) {
@@ -26,6 +28,31 @@ export function Home({ locationEnabled, setLocationEnabled }) {
       )
     }
   }, [locationEnabled])
+
+  useEffect(() => {
+    fetchEvents()
+  }, [])
+
+  const fetchEvents = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('events')
+        .select('*')
+      
+      if (error) throw error
+      
+      setEvents(data)
+    } catch (error) {
+      console.error('Error fetching events:', error)
+      toast({
+        title: 'Error',
+        description: 'No se pudieron cargar los eventos',
+        status: 'error',
+        duration: 3000,
+        isClosable: true,
+      })
+    }
+  }
 
   const handleLogout = async () => {
     try {
@@ -79,11 +106,11 @@ export function Home({ locationEnabled, setLocationEnabled }) {
   }
 
   return (
-    <Box maxW="container.xl" mx="auto" py={6}>
-      <VStack spacing={6} align="stretch">
-        <HStack justify="space-between" px={4}>
-          <Heading size="lg">Eventos Cerca</Heading>
-          <Button colorScheme="red" variant="outline" onClick={handleLogout}>
+    <Box p={4}>
+      <VStack spacing={4} align="stretch">
+        <HStack justify="space-between">
+          <Heading size="lg">EventosCerca</Heading>
+          <Button onClick={handleLogout} colorScheme="red" variant="outline">
             Cerrar Sesión
           </Button>
         </HStack>
@@ -102,7 +129,28 @@ export function Home({ locationEnabled, setLocationEnabled }) {
           </Box>
         )}
 
-        <EventFeed userLocation={userLocation} />
+        <Tabs isFitted variant="enclosed" flex="1">
+          <TabList mb="1em">
+            <Tab>
+              <Icon as={FaList} mr={2} />
+              Lista
+            </Tab>
+            <Tab>
+              <Icon as={FaMapMarkerAlt} mr={2} />
+              Mapa
+            </Tab>
+          </TabList>
+          <TabPanels>
+            <TabPanel p={0}>
+              <EventFeed events={events} userLocation={userLocation} />
+            </TabPanel>
+            <TabPanel p={0} h="600px">
+              <Box h="100%" w="100%">
+                <EventMap events={events} />
+              </Box>
+            </TabPanel>
+          </TabPanels>
+        </Tabs>
       </VStack>
     </Box>
   )
