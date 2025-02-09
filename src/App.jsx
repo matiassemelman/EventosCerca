@@ -23,7 +23,18 @@ function App() {
         .then(result => {
           if (result.state === 'granted') {
             setLocationEnabled(true);
+          } else if (result.state === 'prompt') {
+            setLocationEnabled(false);
           }
+          
+          // Escuchar cambios en el permiso
+          result.addEventListener('change', (e) => {
+            if (e.target.state === 'granted') {
+              setLocationEnabled(true);
+            } else {
+              setLocationEnabled(false);
+            }
+          });
         });
     }
   }, []);
@@ -37,7 +48,7 @@ function App() {
           <LocationProvider>
             <Container maxW="container.xl" py={8}>
               <Routes>
-                <Route path="/" element={<Home />} />
+                <Route path="/" element={<Home locationEnabled={locationEnabled} setLocationEnabled={setLocationEnabled} />} />
                 <Route path="/register" element={<Register />} />
                 <Route path="/login" element={<Login setLocationEnabled={setLocationEnabled} />} />
                 <Route path="/auth/callback" element={<AuthCallback />} />
@@ -48,7 +59,7 @@ function App() {
           // Si la ubicación no está habilitada, mostrar la app sin LocationProvider
           <Container maxW="container.xl" py={8}>
             <Routes>
-              <Route path="/" element={<Home />} />
+              <Route path="/" element={<Home locationEnabled={locationEnabled} setLocationEnabled={setLocationEnabled} />} />
               <Route path="/register" element={<Register />} />
               <Route path="/login" element={<Login setLocationEnabled={setLocationEnabled} />} />
               <Route path="/auth/callback" element={<AuthCallback />} />

@@ -1,8 +1,8 @@
-import { Box, Heading, Button, useToast } from '@chakra-ui/react'
+import { Box, Heading, Button, useToast, VStack } from '@chakra-ui/react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 
-export function Home() {
+export function Home({ locationEnabled, setLocationEnabled }) {
   const navigate = useNavigate()
   const toast = useToast()
 
@@ -31,12 +31,45 @@ export function Home() {
     }
   }
 
+  const handleLocationPermission = () => {
+    if ('geolocation' in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        () => {
+          setLocationEnabled(true)
+          toast({
+            title: 'Ubicación activada',
+            description: 'Ahora podrás ver eventos cercanos a ti',
+            status: 'success',
+            duration: 3000,
+            isClosable: true,
+          })
+        },
+        (error) => {
+          toast({
+            title: 'Error',
+            description: 'No se pudo obtener tu ubicación. Por favor, intenta de nuevo.',
+            status: 'error',
+            duration: 3000,
+            isClosable: true,
+          })
+        }
+      )
+    }
+  }
+
   return (
     <Box p={8} textAlign="center">
-      <Heading mb={6}>Hola Mundo</Heading>
-      <Button colorScheme="red" onClick={handleLogout}>
-        Cerrar Sesión
-      </Button>
+      <VStack spacing={6}>
+        <Heading>Hola Mundo</Heading>
+        {!locationEnabled && (
+          <Button colorScheme="blue" onClick={handleLocationPermission}>
+            Permitir Ubicación
+          </Button>
+        )}
+        <Button colorScheme="red" onClick={handleLogout}>
+          Cerrar Sesión
+        </Button>
+      </VStack>
     </Box>
   )
 }

@@ -54,6 +54,19 @@ export function Login({ setLocationEnabled }) {
     }
   }, []);
 
+  // Efecto para verificar permisos de ubicación existentes
+  useEffect(() => {
+    if ('permissions' in navigator) {
+      navigator.permissions.query({ name: 'geolocation' })
+        .then(result => {
+          if (result.state === 'granted') {
+            setLocationEnabled(true);
+            setShowLocationPrompt(false);
+          }
+        });
+    }
+  }, [setLocationEnabled]);
+
   /**
    * Valida los campos del formulario
    * @returns {Boolean} Verdadero si el formulario es válido, falso de lo contrario
