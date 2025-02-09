@@ -16,10 +16,15 @@ import {
   InputGroup,
   InputRightElement,
   IconButton,
+  Alert,
+  AlertIcon,
+  AlertTitle,
+  AlertDescription,
 } from '@chakra-ui/react';
 import { ViewIcon, ViewOffIcon } from '@chakra-ui/icons';
 import { FcGoogle } from 'react-icons/fc';
 import { supabase } from '../../lib/supabase';
+import { geolocationService } from '../../services/geolocationService';
 
 /**
  * Componente de inicio de sesión
@@ -34,6 +39,7 @@ export function Login({ setLocationEnabled }) {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState({});
+  const [showLocationPrompt, setShowLocationPrompt] = useState(false);
   const toast = useToast();
   const navigate = useNavigate();
 
@@ -74,6 +80,34 @@ export function Login({ setLocationEnabled }) {
   };
 
   /**
+   * Solicita permisos de ubicación al usuario
+   */
+  const requestLocationPermission = async () => {
+    try {
+      const position = await geolocationService.getCurrentPosition();
+      setLocationEnabled(true);
+      setShowLocationPrompt(false);
+      toast({
+        title: '¡Perfecto!',
+        description: 'Ahora podremos mostrarte eventos cerca de tu ubicación.',
+        status: 'success',
+        duration: 5000,
+        isClosable: true,
+      });
+      navigate('/');
+    } catch (error) {
+      toast({
+        title: 'Acceso a ubicación denegado',
+        description: 'Sin acceso a tu ubicación, no podremos mostrarte eventos cercanos. Puedes cambiar esto en la configuración de tu navegador.',
+        status: 'warning',
+        duration: 8000,
+        isClosable: true,
+      });
+      navigate('/');
+    }
+  };
+
+  /**
    * Maneja el envío del formulario
    * @param {Event} e - Evento de envío del formulario
    */
@@ -99,48 +133,7 @@ export function Login({ setLocationEnabled }) {
       });
 
       if (error) {
-        let errorMessage = error.message;
-        if (error.message.includes('Invalid login credentials')) {
-          errorMessage = 'Credenciales inválidas';
-        } else if (error.message.includes('Email not confirmed')) {
-          errorMessage = 'Email no confirmado. Por favor verifica tu correo';
-        }
-        throw { message: errorMessage };
-      }
-
-      // Solicitar permisos de ubicación después del inicio de sesión exitoso
-      if ('geolocation' in navigator) {
-        const requestLocation = () => {
-          return new Promise((resolve) => {
-            navigator.geolocation.getCurrentPosition(
-              (position) => {
-                resolve({ success: true, position });
-              },
-              (error) => {
-                resolve({ success: false, error });
-              },
-              {
-                enableHighAccuracy: true,
-                timeout: 15000,
-                maximumAge: 30000
-              }
-            );
-          });
-        };
-
-        const { success, error: geoError } = await requestLocation();
-        
-        if (success) {
-          setLocationEnabled(true);
-        } else {
-          toast({
-            title: 'Ubicación requerida',
-            description: 'Para una mejor experiencia, por favor permite el acceso a tu ubicación y recarga la página.',
-            status: 'warning',
-            duration: 8000,
-            isClosable: true,
-          });
-        }
+        throw error;
       }
 
       if (rememberMe) {
@@ -149,22 +142,15 @@ export function Login({ setLocationEnabled }) {
         localStorage.removeItem('userCredentials');
       }
 
-      toast({
-        title: '¡Bienvenido!',
-        description: 'Has iniciado sesión correctamente',
-        status: 'success',
-        duration: 3000,
-        isClosable: true,
-      });
+      // Mostrar el prompt de ubicación después del login exitoso
+      setShowLocationPrompt(true);
 
-      navigate('/');
-      
     } catch (error) {
       toast({
         title: 'Error al iniciar sesión',
         description: error.message,
         status: 'error',
-        duration: 3000,
+        duration: 5000,
         isClosable: true,
       });
     } finally {
@@ -200,89 +186,121 @@ export function Login({ setLocationEnabled }) {
   };
 
   return (
-    <Box maxW="md" mx="auto" mt={8} p={6} borderWidth={1} borderRadius="lg">
-      <form onSubmit={handleSubmit}>
-        <VStack spacing={4}>
-          <Text fontSize="2xl" fontWeight="bold">
-            Iniciar Sesión
-          </Text>
-          
-          <FormControl isRequired isInvalid={errors.email}>
-            <FormLabel>Correo electrónico</FormLabel>
-            <Input
-              type="email"
-              value={email}
-              onChange={(e) => {
-                setEmail(e.target.value);
-                setErrors({ ...errors, email: undefined });
-              }}
-              placeholder="tucorreo@ejemplo.com"
-            />
-            <FormErrorMessage>{errors.email}</FormErrorMessage>
-          </FormControl>
-
-          <FormControl isRequired isInvalid={errors.password}>
-            <FormLabel>Contraseña</FormLabel>
-            <InputGroup>
-              <Input
-                type={showPassword ? 'text' : 'password'}
-                value={password}
-                onChange={(e) => {
-                  setPassword(e.target.value);
-                  setErrors({ ...errors, password: undefined });
-                }}
-                placeholder="Tu contraseña"
-              />
-              <InputRightElement>
-                <IconButton
-                  aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
-                  icon={showPassword ? <ViewOffIcon /> : <ViewIcon />}
-                  onClick={() => setShowPassword(!showPassword)}
-                  variant="ghost"
-                  size="sm"
-                />
-              </InputRightElement>
-            </InputGroup>
-            <FormErrorMessage>{errors.password}</FormErrorMessage>
-          </FormControl>
-
-          <FormControl>
-            <Checkbox
-              isChecked={rememberMe}
-              onChange={(e) => setRememberMe(e.target.checked)}
+    <Box p={8} maxWidth="400px" mx="auto">
+      <VStack spacing={4} align="stretch">
+        {showLocationPrompt ? (
+          <Alert
+            status="info"
+            variant="subtle"
+            flexDirection="column"
+            alignItems="center"
+            justifyContent="center"
+            textAlign="center"
+            height="300px"
+            borderRadius="md"
+          >
+            <AlertIcon boxSize="40px" mr={0} />
+            <AlertTitle mt={4} mb={1} fontSize="lg">
+              ¡Encuentra eventos cerca de ti!
+            </AlertTitle>
+            <AlertDescription maxWidth="sm">
+              Para mostrarte los mejores eventos en tu área, necesitamos acceder a tu ubicación. 
+              Esta información es esencial para brindarte una experiencia personalizada.
+            </AlertDescription>
+            <Button
+              colorScheme="blue"
+              mt={4}
+              onClick={requestLocationPermission}
+              isLoading={loading}
             >
-              Recordar mis credenciales
-            </Checkbox>
-          </FormControl>
+              Permitir acceso a mi ubicación
+            </Button>
+          </Alert>
+        ) : (
+          <form onSubmit={handleSubmit} style={{ width: '100%' }}>
+            <VStack spacing={4}>
+              <Text fontSize="2xl" fontWeight="bold">
+                Iniciar Sesión
+              </Text>
+              
+              <FormControl isRequired isInvalid={errors.email}>
+                <FormLabel>Correo electrónico</FormLabel>
+                <Input
+                  type="email"
+                  value={email}
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    setErrors({ ...errors, email: undefined });
+                  }}
+                  placeholder="tucorreo@ejemplo.com"
+                />
+                <FormErrorMessage>{errors.email}</FormErrorMessage>
+              </FormControl>
 
+              <FormControl isRequired isInvalid={errors.password}>
+                <FormLabel>Contraseña</FormLabel>
+                <InputGroup>
+                  <Input
+                    type={showPassword ? 'text' : 'password'}
+                    value={password}
+                    onChange={(e) => {
+                      setPassword(e.target.value);
+                      setErrors({ ...errors, password: undefined });
+                    }}
+                    placeholder="Tu contraseña"
+                  />
+                  <InputRightElement>
+                    <IconButton
+                      aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                      icon={showPassword ? <ViewOffIcon /> : <ViewIcon />}
+                      onClick={() => setShowPassword(!showPassword)}
+                      variant="ghost"
+                      size="sm"
+                    />
+                  </InputRightElement>
+                </InputGroup>
+                <FormErrorMessage>{errors.password}</FormErrorMessage>
+              </FormControl>
+
+              <FormControl>
+                <Checkbox
+                  isChecked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                >
+                  Recordar mis credenciales
+                </Checkbox>
+              </FormControl>
+
+              <Button
+                type="submit"
+                colorScheme="blue"
+                width="100%"
+                isLoading={loading}
+              >
+                Iniciar Sesión
+              </Button>
+
+              <Text>
+                ¿No tienes una cuenta?{' '}
+                <Link color="blue.500" href="/signup">
+                  Regístrate aquí
+                </Link>
+              </Text>
+            </VStack>
+          </form>
+        )}
+        <Box w="100%" mt={4}>
           <Button
-            type="submit"
-            colorScheme="blue"
-            width="100%"
+            w="100%"
+            variant="outline"
+            leftIcon={<FcGoogle />}
+            onClick={handleGoogleLogin}
             isLoading={loading}
           >
-            Iniciar Sesión
+            Continuar con Google
           </Button>
-
-          <Text>
-            ¿No tienes una cuenta?{' '}
-            <Link color="blue.500" href="/signup">
-              Regístrate aquí
-            </Link>
-          </Text>
-        </VStack>
-      </form>
-      <Box w="100%" mt={4}>
-        <Button
-          w="100%"
-          variant="outline"
-          leftIcon={<FcGoogle />}
-          onClick={handleGoogleLogin}
-          isLoading={loading}
-        >
-          Continuar con Google
-        </Button>
-      </Box>
+        </Box>
+      </VStack>
     </Box>
   );
 }
