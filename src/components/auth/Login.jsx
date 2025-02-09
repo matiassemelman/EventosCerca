@@ -143,6 +143,9 @@ export function Login({ setLocationEnabled }) {
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`
+        }
       });
 
       if (error) {
@@ -154,9 +157,6 @@ export function Login({ setLocationEnabled }) {
       } else {
         localStorage.removeItem('userCredentials');
       }
-
-      // Mostrar el prompt de ubicación después del login exitoso
-      setShowLocationPrompt(true);
 
     } catch (error) {
       toast({
