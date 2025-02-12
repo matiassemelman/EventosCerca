@@ -1,15 +1,33 @@
 import { VStack, Spinner, Text, Box } from '@chakra-ui/react'
 import { useState, useEffect } from 'react'
+import { useInView } from 'react-intersection-observer'
 import { supabase } from '../../lib/supabase'
 import { EventCard } from './EventCard'
+
+const EVENTS_PER_PAGE = 6
 
 export function EventFeed({ userLocation }) {
   const [events, setEvents] = useState([])
   const [loading, setLoading] = useState(true)
+  const [hasMore, setHasMore] = useState(true)
+  const [page, setPage] = useState(0)
+  const { ref, inView } = useInView({
+    threshold: 0,
+  })
 
   useEffect(() => {
-    fetchEvents()
+    // Reset everything when location changes
+    setEvents([])
+    setPage(0)
+    setHasMore(true)
+    fetchEvents(0, true)
   }, [userLocation])
+
+  useEffect(() => {
+    if (inView && hasMore && !loading) {
+      fetchEvents(page + 1)
+    }
+  }, [inView])
 
   const calculateDistance = (eventLat, eventLng) => {
     if (!userLocation) return null
@@ -25,14 +43,18 @@ export function EventFeed({ userLocation }) {
     return R * c
   }
 
-  const fetchEvents = async () => {
+  const fetchEvents = async (currentPage, reset = false) => {
     try {
       setLoading(true)
+      const from = currentPage * EVENTS_PER_PAGE
+      const to = from + EVENTS_PER_PAGE - 1
+
       const { data, error } = await supabase
         .from('events')
         .select('*')
         .gte('date', new Date().toISOString())
         .order('date', { ascending: true })
+        .range(from, to)
 
       if (error) throw error
 
@@ -41,12 +63,14 @@ export function EventFeed({ userLocation }) {
         distance: calculateDistance(event.latitude, event.longitude)
       }))
 
-      // Sort by distance if location is available, otherwise by date
+      // Sort by distance if location is available, otherwise keep date sort
       const sortedEvents = userLocation
         ? eventsWithDistance.sort((a, b) => a.distance - b.distance)
         : eventsWithDistance
 
-      setEvents(sortedEvents)
+      setEvents(prev => reset ? sortedEvents : [...prev, ...sortedEvents])
+      setPage(currentPage)
+      setHasMore(data.length === EVENTS_PER_PAGE)
     } catch (error) {
       console.error('Error fetching events:', error)
     } finally {
@@ -54,7 +78,7 @@ export function EventFeed({ userLocation }) {
     }
   }
 
-  if (loading) {
+  if (loading && events.length === 0) {
     return (
       <Box display="flex" justifyContent="center" p={4}>
         <Spinner size="xl" />
@@ -81,6 +105,13 @@ export function EventFeed({ userLocation }) {
           distance={event.distance}
         />
       ))}
+      
+      {/* Loading spinner for next page */}
+      {hasMore && (
+        <Box ref={ref} p={4} w="100%" textAlign="center">
+          <Spinner size="md" />
+        </Box>
+      )}
     </VStack>
   )
 }
