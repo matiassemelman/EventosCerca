@@ -7,7 +7,6 @@ import { AuthCallback } from './components/auth/AuthCallback'
 import { Home } from './pages/Home'
 import { LocationProvider } from './components/LocationProvider'
 import { useEffect, useState } from 'react'
-import 'leaflet/dist/leaflet.css'
 
 /**
  * Componente principal de la aplicación
