@@ -4,6 +4,7 @@ import { Box, useColorMode, Flex, IconButton, Text } from '@chakra-ui/react';
 import { ChevronLeftIcon, ChevronRightIcon } from '@chakra-ui/icons';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import { useRef } from 'react';
 
 // Fix for default markers in React-Leaflet
 delete L.Icon.Default.prototype._getIconUrl;
@@ -56,6 +57,50 @@ function MapUpdater({ center }) {
     map.setView(center, map.getZoom());
   }, [map, center]);
   
+  return null;
+}
+
+// Hook personalizado para monitorear dimensiones
+const useContainerDimensions = () => {
+  const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
+  const containerRef = useRef(null);
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+
+    const observer = new ResizeObserver(entries => {
+      const { width, height } = entries[0].contentRect;
+      setDimensions({ width, height });
+    });
+
+    observer.observe(containerRef.current);
+    return () => observer.disconnect();
+  }, []);
+
+  return [containerRef, dimensions];
+};
+
+// Componente para manejar el redimensionamiento del mapa
+function MapResizer() {
+  const map = useMap();
+  const [mapUpdated, setMapUpdated] = useState(false);
+  
+  useEffect(() => {
+    if (!mapUpdated) {
+      const updateMap = () => {
+        map.invalidateSize();
+        setMapUpdated(true);
+      };
+
+      // Intentar actualizar inmediatamente
+      updateMap();
+
+      // Y también después de un pequeño retraso por si acaso
+      const timer = setTimeout(updateMap, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [map, mapUpdated]);
+
   return null;
 }
 
@@ -194,6 +239,8 @@ const PopupContent = ({ events, locationKey }) => {
 const EventMap = ({ events = [] }) => {
   const [center, setCenter] = useState([-34.6037, -58.3816]); // Default to Buenos Aires
   const [userLocation, setUserLocation] = useState(null);
+  const [isMapReady, setIsMapReady] = useState(false);
+  const [containerRef, containerDimensions] = useContainerDimensions();
   const { colorMode } = useColorMode();
   
   // Filtrar eventos con coordenadas válidas
@@ -220,6 +267,7 @@ const EventMap = ({ events = [] }) => {
     }, {});
   }, [validEvents]);
 
+  // Efecto para obtener la ubicación del usuario
   useEffect(() => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
@@ -238,8 +286,67 @@ const EventMap = ({ events = [] }) => {
     }
   }, []);
 
+  useEffect(() => {
+    if (containerDimensions.width > 0 && containerDimensions.height > 0) {
+      setIsMapReady(true);
+    }
+  }, [containerDimensions]);
+
+  const mapContent = (
+    <MapContainer
+      center={center}
+      zoom={13}
+      style={{ 
+        height: '100%', 
+        width: '100%',
+        position: 'absolute',
+        top: 0,
+        left: 0
+      }}
+      scrollWheelZoom={true}
+      zoomControl={true}
+    >
+      <TileLayer
+        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        maxZoom={19}
+      />
+      <MapUpdater center={center} />
+      <MapResizer />
+      
+      {userLocation && (
+        <Marker position={userLocation.coords}>
+          <Popup>
+            <div>
+              <h3 style={{ fontWeight: 'bold', marginBottom: '8px' }}>Tu ubicación</h3>
+            </div>
+          </Popup>
+        </Marker>
+      )}
+
+      {Object.entries(groupedEvents).map(([locationKey, locationEvents]) => {
+        const [lat, lng] = locationKey.split(',').map(Number);
+        
+        return (
+          <Marker
+            key={locationKey}
+            position={[lat, lng]}
+          >
+            <Popup>
+              <PopupContent
+                events={locationEvents}
+                locationKey={locationKey}
+              />
+            </Popup>
+          </Marker>
+        );
+      })}
+    </MapContainer>
+  );
+
   return (
     <Box
+      ref={containerRef}
       h="500px"
       w="100%"
       position="relative"
@@ -248,54 +355,13 @@ const EventMap = ({ events = [] }) => {
       boxShadow="base"
       sx={{
         '.leaflet-container': {
-          height: '100%',
-          width: '100%',
+          height: '100% !important',
+          width: '100% !important',
           zIndex: 1
         }
       }}
     >
-      <MapContainer
-        center={center}
-        zoom={13}
-        style={{ height: '100%', width: '100%' }}
-        scrollWheelZoom={true}
-        zoomControl={true}
-      >
-        <TileLayer
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-          maxZoom={19}
-        />
-        <MapUpdater center={center} />
-        
-        {userLocation && (
-          <Marker position={userLocation.coords}>
-            <Popup>
-              <div>
-                <h3 style={{ fontWeight: 'bold', marginBottom: '8px' }}>Tu ubicación</h3>
-              </div>
-            </Popup>
-          </Marker>
-        )}
-
-        {Object.entries(groupedEvents).map(([locationKey, locationEvents]) => {
-          const [lat, lng] = locationKey.split(',').map(Number);
-          
-          return (
-            <Marker
-              key={locationKey}
-              position={[lat, lng]}
-            >
-              <Popup>
-                <PopupContent
-                  events={locationEvents}
-                  locationKey={locationKey}
-                />
-              </Popup>
-            </Marker>
-          );
-        })}
-      </MapContainer>
+      {isMapReady && containerDimensions.width > 0 ? mapContent : null}
     </Box>
   );
 };
