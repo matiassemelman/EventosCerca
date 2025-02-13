@@ -37,23 +37,25 @@ export function AuthCallback() {
       if (error) throw error;
       
       if (!session) {
-        navigate('/login');
+        window.location.href = '/login';
         return;
       }
+
+      const baseUrl = import.meta.env.VITE_SITE_URL || window.location.origin;
 
       // Verificar si ya tenemos los permisos de ubicación
       if ('permissions' in navigator) {
         const permission = await navigator.permissions.query({ name: 'geolocation' });
         if (permission.state === 'granted') {
           // Si ya tenemos permisos, redirigir a la página principal
-          window.location.href = '/';
+          window.location.href = `${baseUrl}/`;
         } else {
           setShowLocationPrompt(true);
           setLoading(false);
         }
       } else {
         // Si no hay API de permisos, redirigir a la página principal
-        window.location.href = '/';
+        window.location.href = `${baseUrl}/`;
       }
     } catch (error) {
       console.error('Error en checkAuthAndLocation:', error);
@@ -64,7 +66,7 @@ export function AuthCallback() {
         duration: 5000,
         isClosable: true,
       });
-      navigate('/login');
+      window.location.href = '/login';
     }
   };
 
@@ -72,7 +74,8 @@ export function AuthCallback() {
     try {
       setLoading(true);
       const position = await geolocationService.getCurrentPosition();
-      window.location.href = '/';
+      const baseUrl = import.meta.env.VITE_SITE_URL || window.location.origin;
+      window.location.href = `${baseUrl}/`;
     } catch (error) {
       toast({
         title: 'Error de ubicación',
@@ -81,12 +84,14 @@ export function AuthCallback() {
         duration: 5000,
         isClosable: true,
       });
-      window.location.href = '/';
+      const baseUrl = import.meta.env.VITE_SITE_URL || window.location.origin;
+      window.location.href = `${baseUrl}/`;
     }
   };
 
   const skipLocationPermission = () => {
-    navigate('/');
+    const baseUrl = import.meta.env.VITE_SITE_URL || window.location.origin;
+    window.location.href = `${baseUrl}/`;
   };
 
   if (loading && !showLocationPrompt) {
