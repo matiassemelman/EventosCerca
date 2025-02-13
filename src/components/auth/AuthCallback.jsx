@@ -31,46 +31,57 @@ export function AuthCallback() {
   }, []);
 
   const checkAuthAndLocation = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    
-    if (!session) {
-      navigate('/login');
-      return;
-    }
-
-    if ('permissions' in navigator) {
-      const permission = await navigator.permissions.query({ name: 'geolocation' });
-      if (permission.state === 'granted') {
-        navigate('/');
-      } else {
-        setShowLocationPrompt(true);
-        setLoading(false);
+    try {
+      const { data: { session }, error } = await supabase.auth.getSession();
+      
+      if (error) throw error;
+      
+      if (!session) {
+        navigate('/login');
+        return;
       }
-    } else {
-      navigate('/');
+
+      // Verificar si ya tenemos los permisos de ubicación
+      if ('permissions' in navigator) {
+        const permission = await navigator.permissions.query({ name: 'geolocation' });
+        if (permission.state === 'granted') {
+          // Si ya tenemos permisos, redirigir a la página principal
+          window.location.href = '/';
+        } else {
+          setShowLocationPrompt(true);
+          setLoading(false);
+        }
+      } else {
+        // Si no hay API de permisos, redirigir a la página principal
+        window.location.href = '/';
+      }
+    } catch (error) {
+      console.error('Error en checkAuthAndLocation:', error);
+      toast({
+        title: 'Error de autenticación',
+        description: error.message,
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
+      });
+      navigate('/login');
     }
   };
 
   const handleLocationPermission = async () => {
     try {
-      await geolocationService.getCurrentPosition();
+      setLoading(true);
+      const position = await geolocationService.getCurrentPosition();
+      window.location.href = '/';
+    } catch (error) {
       toast({
-        title: '¡Perfecto!',
-        description: 'Ahora podremos mostrarte eventos cerca de tu ubicación.',
-        status: 'success',
+        title: 'Error de ubicación',
+        description: 'No se pudo obtener tu ubicación. Serás redirigido a la página principal.',
+        status: 'warning',
         duration: 5000,
         isClosable: true,
       });
-      navigate('/');
-    } catch (error) {
-      toast({
-        title: 'Acceso a ubicación denegado',
-        description: 'Sin acceso a tu ubicación, no podremos mostrarte eventos cercanos. Puedes cambiar esto en la configuración de tu navegador.',
-        status: 'warning',
-        duration: 8000,
-        isClosable: true,
-      });
-      navigate('/');
+      window.location.href = '/';
     }
   };
 
