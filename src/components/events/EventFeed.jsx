@@ -52,8 +52,7 @@ export function EventFeed({ userLocation }) {
       const { data, error } = await supabase
         .from('events')
         .select('*')
-        .gte('date', new Date().toISOString())
-        .order('date', { ascending: true })
+        .order('created_at', { ascending: false })
         .range(from, to)
 
       if (error) throw error

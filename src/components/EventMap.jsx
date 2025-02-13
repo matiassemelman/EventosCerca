@@ -28,24 +28,7 @@ const isValidCoordinate = (lat, lng) => {
 
 // Función para formatear la fecha
 const formatDate = (date) => {
-  try {
-    const dateObj = new Date(date);
-    if (isNaN(dateObj.getTime())) {
-      return null;
-    }
-    
-    const options = { 
-      weekday: 'long', 
-      year: 'numeric', 
-      month: 'long', 
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    };
-    return dateObj.toLocaleDateString('es-ES', options);
-  } catch (e) {
-    return null;
-  }
+  return date || '';
 };
 
 // Componente para manejar la actualización del mapa
@@ -133,7 +116,7 @@ const PopupContent = ({ events, locationKey }) => {
 
   return (
     <div style={{ minWidth: '300px', maxWidth: '350px' }}>
-      {currentEvent.image && (
+      {(currentEvent.image || true) && (
         <Box
           mb={3}
           borderRadius="md"
@@ -150,13 +133,13 @@ const PopupContent = ({ events, locationKey }) => {
               left: 0,
               right: 0,
               bottom: 0,
-              backgroundColor: 'rgba(0, 0, 0, 0.1)',
+              backgroundColor: 'rgba(0, 0, 0, 0.2)',
               transition: 'background-color 0.2s'
             }
           } : {}}
         >
           <img
-            src={currentEvent.image}
+            src={currentEvent.image || 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=800&auto=format&fit=crop&q=60'}
             alt={currentEvent.title}
             style={{
               position: 'absolute',
@@ -167,6 +150,21 @@ const PopupContent = ({ events, locationKey }) => {
               objectFit: 'cover',
             }}
           />
+          {currentEvent.url && (
+            <Box
+              position="absolute"
+              bottom={2}
+              right={2}
+              backgroundColor="rgba(0, 0, 0, 0.6)"
+              color="white"
+              px={2}
+              py={1}
+              borderRadius="md"
+              fontSize="sm"
+            >
+              Ver evento
+            </Box>
+          )}
         </Box>
       )}
       <h3 style={{ 

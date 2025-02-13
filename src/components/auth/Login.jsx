@@ -142,10 +142,7 @@ export function Login({ setLocationEnabled }) {
       setLoading(true);
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
-        password,
-        options: {
-          redirectTo: `${window.location.origin}/auth/callback`
-        }
+        password
       });
 
       if (error) {
@@ -158,6 +155,20 @@ export function Login({ setLocationEnabled }) {
         localStorage.removeItem('userCredentials');
       }
 
+      // Si el inicio de sesión es exitoso, verificar la ubicación o redirigir
+      if (data?.user) {
+        if ('permissions' in navigator) {
+          const permissionStatus = await navigator.permissions.query({ name: 'geolocation' });
+          if (permissionStatus.state === 'granted') {
+            setLocationEnabled(true);
+            navigate('/');
+          } else {
+            setShowLocationPrompt(true);
+          }
+        } else {
+          navigate('/');
+        }
+      }
     } catch (error) {
       toast({
         title: 'Error al iniciar sesión',
@@ -180,7 +191,7 @@ export function Login({ setLocationEnabled }) {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/auth/callback`
+          redirectTo: window.location.origin
         }
       });
 

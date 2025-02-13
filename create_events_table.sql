@@ -4,7 +4,7 @@ create table if not exists public.events (
     title text not null,
     description text,
     image text,
-    date timestamptz not null,
+    date text not null,
     location text,
     latitude double precision,
     longitude double precision,
