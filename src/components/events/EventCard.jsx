@@ -1,5 +1,6 @@
 import { Box, Image, Text, VStack, HStack, Icon } from '@chakra-ui/react'
 import { FaMapMarkerAlt, FaClock } from 'react-icons/fa'
+import { translateDateToSpanish } from '../../utils/dateUtils'
 
 // Imágenes por defecto según el tipo de evento o palabras clave en el título
 const defaultImages = {
@@ -66,7 +67,7 @@ export function EventCard({ event, distance }) {
         <HStack spacing={4} color="gray.500">
           <HStack>
             <Icon as={FaClock} />
-            <Text>{new Date(date).toLocaleDateString()}</Text>
+            <Text>{translateDateToSpanish(date)}</Text>
           </HStack>
           <HStack>
             <Icon as={FaMapMarkerAlt} />
